@@ -439,6 +439,46 @@ like an artefact of feeding the model mislabelled text, not Mayura's normal
 behaviour — a useful reminder that a bad corpus makes a model look worse than it
 is.
 
+### 7.4.1b Mode A/B (Phase 2 eval harness)
+
+`scripts/eval_translation.py --variants code-mixed,formal,modern-colloquial`.
+Latency is identical across modes (p50 1707 / 1740 ms), so this is purely a
+quality choice.
+
+**The two colloquial modes are near-identical in output. `formal` is the
+genuinely different one, and it trades one class of bug for a worse one.**
+
+| | `code-mixed` / `modern-colloquial` | `formal` |
+|---|---|---|
+| English loan words | **preserved** — ஸ்டேஷன், பேட்டரி, கேஷ் | **nativised** |
+| Disjunctive questions | **broken** (see below) | correct |
+| Register | casual, matches the speaker | stiff |
+
+The decisive case: `भाई मुझे स्टेशन जाना है` ("I need to go to the station").
+
+- `code-mixed` → `ஸ்டேஷன்` ✅
+- `formal` → **`காவல் நிலையம்`** ❌ — *police station*. It "translated" the
+  loan word and invented a meaning the speaker never had.
+
+That is a far worse failure than clumsy phrasing, and it is exactly the kind of
+error that matters when a traveller is asking for directions. **`code-mixed`
+stays the default, and `formal` is not a fallback.**
+
+Two defects confirmed as properties of the *colloquial* modes generally, not of
+code-mixing — so switching mode will not fix them:
+
+1. **Disjunctive questions collapse.** "is this hotel good, or should I look at
+   another?" → *"are you asking whether to check out another one?"*
+2. **Leading interrogatives get dropped.** "Where is the nearest ATM machine, I
+   need to withdraw cash urgently" → roughly *"I must have gone to the ATM
+   machine, need cash urgently"*. The question disappears entirely.
+
+Both are worth a dedicated attempt in Phase 8, and both are now pinned as rows
+in `eval/dataset.jsonl` so any future change is measured against them rather
+than argued about. The likely fix is not a Sarvam parameter — it is an LLM
+translator with an explicit "preserve sentence type" instruction, benchmarked on
+this same dataset.
+
 ### 7.4.2 What this does to the latency budget
 
 Translation alone is ~1.8s against a 2s end-to-end p95 target. The target does
@@ -655,8 +695,8 @@ only".
 | Phase | Deliverable | Done when |
 |---|---|---|
 | **0. Spikes & skeleton** ✅ | Repo skeleton, docker-compose, config, provider layer. Translation spike run twice (§7.4.1) | **Done.** Latency and quality measured; pivot confirmed. Cost model still unfilled |
-| **1. Media path** ~ | `<Stream bidirectional>` XML, media websocket, `VobizFrameSerializer`, echo bot | **Code done, tests green** — the echo path is proven against a simulated Vobiz (`tests/integration`). **Not yet confirmed on a real call** |
-| **2. Single-leg translation** | STT→MT→TTS on one leg, translated back to you. Provider interfaces + Sarvam impls. **Eval harness.** | You speak Hindi, hear Tamil. Eval harness scores a baseline on 5 pairs |
+| **1. Media path** ✅ | `<Stream bidirectional>` XML, media websocket, `VobizFrameSerializer`, echo bot | **Done and confirmed on a real call** — own voice returned, clear, no jitter |
+| **2. Single-leg translation** ~ | STT→MT→TTS on one leg via `PipelineMode.TRANSLATE_LOOPBACK`; `TranslationProcessor`; eval harness + dataset | **Code done, tests green, mode A/B run (§7.4.1b).** **Not yet confirmed on a real call** |
 | **3. IVR** | Voice XML state machine, `<Gather>`, language selection, room create/join/dial-out, Redis room registry | Two phones pair by room code and by dial-out; languages persist across calls |
 | **4. The bridge** | Two-leg cross-transport pipelines, strict `seq` ordering queue | **Two phones in different rooms hold a real translated conversation.** Translated voice only, no double audio |
 | **5. Observability** | Event bus + subscribers, `utterances` table, OTel, audio archival | Every utterance inspectable end-to-end with a timing waterfall |

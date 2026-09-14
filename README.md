@@ -90,6 +90,44 @@ audio) and **doubling** (hearing yourself twice). The first `start` frame is
 logged in full — that is what pins down the field spellings Vobiz does not
 document.
 
+**Status: confirmed on a real call.** Clear audio, no jitter.
+
+## Phase 2: hear yourself translated
+
+Same setup as Phase 1, but `PIPELINE__MODE=translate_loopback` (the default).
+Speak the source language, hear the target language back:
+
+```bash
+# in backend/.env.local
+PIPELINE__MODE=translate_loopback
+PIPELINE__LOOPBACK_SOURCE_LANGUAGE=hi-IN
+PIPELINE__LOOPBACK_TARGET_LANGUAGE=ta-IN
+PIPELINE__VAD_STOP_SECONDS=0.7          # the main latency knob
+```
+
+Set `PIPELINE__MODE=echo` to drop back to the Phase 1 bot when you need to tell
+a plumbing problem from an AI one.
+
+Expect roughly 3 seconds end to end. That is measured, not a bug — see
+[docs/PLAN.md](docs/PLAN.md) §7.4.2 for where it goes and what would claw it
+back.
+
+## Translation eval
+
+Compares configurations on a fixed dataset. Latency is identical across Sarvam
+modes, so this is a quality tool:
+
+```bash
+cd backend
+uv run python scripts/eval_translation.py --variants code-mixed,formal
+```
+
+`eval/dataset.jsonl` carries the known failure cases as rows, so a future change
+gets measured against them instead of argued about. Every `reference` field
+starts `null` on purpose — writing reference translations is human work, and
+inventing them would make the harness lie. Fill some in and chrF scoring turns
+itself on.
+
 ## Checks
 
 ```bash

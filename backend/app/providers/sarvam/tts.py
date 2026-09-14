@@ -40,9 +40,7 @@ _CODEC_SAMPLE_RATE: dict[AudioCodec, int] = {
 #: Curated per language. Voice quality varies a lot across Indic languages, so
 #: this map is worth revisiting with real listening tests rather than trusting
 #: one voice everywhere - which is exactly why it is a map and not a constant.
-_DEFAULT_SPEAKERS: dict[Language, SarvamSpeaker] = dict.fromkeys(
-    Language, SarvamSpeaker.PRIYA
-)
+_DEFAULT_SPEAKERS: dict[Language, SarvamSpeaker] = dict.fromkeys(Language, SarvamSpeaker.PRIYA)
 _FALLBACK_SPEAKER = SarvamSpeaker.PRIYA
 
 

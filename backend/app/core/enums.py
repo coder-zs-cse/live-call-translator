@@ -135,6 +135,35 @@ class MenuKey(StrEnum):
     CHANGE_LANGUAGE = "9"
 
 
+class SttMode(StrEnum):
+    """Sarvam realtime STT `mode`.
+
+    TRANSCRIBE is the default. Two others matter to this project:
+
+    VERBATIM keeps disfluencies and broken grammar instead of tidying them,
+    which is closer to the fidelity requirement but risks speaking a listener
+    every "um" the speaker made. Worth an A/B in the Phase 2 eval.
+
+    TRANSLATE emits English directly from source audio. That is the free first
+    hop of the Indic->Indic pivot (PLAN 7.4.2) - the single biggest latency win
+    available, deferred to Phase 8.
+    """
+
+    TRANSCRIBE = "transcribe"
+    VERBATIM = "verbatim"
+    TRANSLATE = "translate"
+    TRANSLIT = "translit"
+    CODEMIX = "codemix"
+
+
+class SttStreamType(StrEnum):
+    """Latency/accuracy trade-off on Sarvam's realtime endpoint."""
+
+    FAST = "fast"
+    BALANCED = "balanced"
+    SIMULATED = "simulated"
+
+
 class PipelineMode(StrEnum):
     """Which pipeline a leg gets. Phase 4 replaces this with real pairing.
 

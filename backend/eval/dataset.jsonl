@@ -1,0 +1,12 @@
+{"id": "hi-en-01", "source_language": "hi-IN", "target_language": "en-IN", "text": "भाई मुझे स्टेशन जाना है, कितना टाइम लगेगा?", "reference": null, "note": "address term + English loan word 'time'"}
+{"id": "hi-en-02", "source_language": "hi-IN", "target_language": "en-IN", "text": "मेरे फ़ोन की बैटरी लो हो गई है, चार्जर मिलेगा क्या?", "reference": null, "note": "casual request; must not become formal"}
+{"id": "hi-ta-01", "source_language": "hi-IN", "target_language": "ta-IN", "text": "भाई मुझे स्टेशन जाना है, कितना टाइम लगेगा?", "reference": null, "note": "honorific polarity: भाई is elder-brother, தம்பி is younger"}
+{"id": "hi-ta-02", "source_language": "hi-IN", "target_language": "ta-IN", "text": "यह वाला होटल अच्छा है क्या, या मैं दूसरा देखूँ?", "reference": null, "note": "KNOWN FAILURE: disjunctive question becomes a question about the question"}
+{"id": "hi-ta-03", "source_language": "hi-IN", "target_language": "ta-IN", "text": "मुझे अर्जेंट कैश निकालना है, नियरेस्ट ATM कहाँ है?", "reference": null, "note": "English technical nouns must survive"}
+{"id": "ta-hi-01", "source_language": "ta-IN", "target_language": "hi-IN", "text": "அண்ணே எனக்கு ஸ்டேஷன் போகணும், எவ்வளவு டைம் ஆகும்?", "reference": null, "note": "address term அண்ணே should not vanish"}
+{"id": "ta-hi-02", "source_language": "ta-IN", "target_language": "hi-IN", "text": "இந்த ஹோட்டல் நல்லா இருக்கா, இல்ல வேற பாக்கவா?", "reference": null, "note": "KNOWN FAILURE: disjunctive question degrades into awkward Hindi"}
+{"id": "ta-hi-03", "source_language": "ta-IN", "target_language": "hi-IN", "text": "என் ஃபோன் பேட்டரி லோ ஆயிடுச்சு, சார்ஜர் கிடைக்குமா?", "reference": null, "note": "baseline: this one already works"}
+{"id": "te-hi-01", "source_language": "te-IN", "target_language": "hi-IN", "text": "నా ఫోన్ బ్యాటరీ లో అయిపోయింది, ఛార్జర్ దొరుకుతుందా?", "reference": null, "note": "KNOWN FAILURE: 'gone low' drifted to 'is dead'"}
+{"id": "te-hi-02", "source_language": "te-IN", "target_language": "hi-IN", "text": "అన్నా నాకు స్టేషన్ కి వెళ్ళాలి, ఎంత టైమ్ పడుతుంది?", "reference": null, "note": "address term అన్నా"}
+{"id": "en-ta-01", "source_language": "en-IN", "target_language": "ta-IN", "text": "Where is the nearest ATM machine, I need to withdraw cash urgently", "reference": null, "note": "single-hop baseline for latency comparison"}
+{"id": "en-hi-01", "source_language": "en-IN", "target_language": "hi-IN", "text": "I am not from here, please can you help me finding this address", "reference": null, "note": "broken grammar ('help me finding') should survive, not be corrected"}

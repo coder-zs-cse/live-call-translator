@@ -20,6 +20,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pipecat.audio.utils import create_stream_resampler, pcm_to_ulaw
 
+from app.core.enums import PipelineMode
 from app.main import create_app
 from app.pipeline.echo import TELEPHONY_SAMPLE_RATE
 
@@ -41,7 +42,10 @@ def _tone_pcm(chunk_index: int) -> bytes:
 
 
 @pytest.mark.asyncio
-async def test_echo_pipeline_returns_the_audio_it_was_sent() -> None:
+@pytest.mark.parametrize("pipeline_mode", [PipelineMode.ECHO], indirect=True)
+async def test_echo_pipeline_returns_the_audio_it_was_sent(
+    pipeline_mode: PipelineMode,
+) -> None:
     resampler = create_stream_resampler()
     chunks = [
         await pcm_to_ulaw(_tone_pcm(i), TELEPHONY_SAMPLE_RATE, TELEPHONY_SAMPLE_RATE, resampler)

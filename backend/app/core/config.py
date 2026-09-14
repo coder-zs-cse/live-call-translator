@@ -17,7 +17,15 @@ from pathlib import Path
 from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.core.enums import AppEnv, Language, OutputScript, PipelineMode
+from app.core.enums import (
+    AppEnv,
+    Language,
+    OutputScript,
+    PipelineMode,
+    SarvamSpeaker,
+    SttMode,
+    SttStreamType,
+)
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
@@ -32,7 +40,12 @@ class SarvamSettings(BaseModel):
     base_url: str = "https://api.sarvam.ai"
     translate_model: str = "mayura:v1"
     stt_model: str = "saaras:v3-realtime"
+    stt_mode: SttMode = SttMode.TRANSCRIBE
+    stt_stream_type: SttStreamType = SttStreamType.FAST
     tts_model: str = "bulbul:v3"
+    #: Voice names are model-generation specific; a v2 name with a v3 model
+    #: fails at request time. See SarvamSpeaker.
+    default_speaker: SarvamSpeaker = SarvamSpeaker.PRIYA
     #: Native script, because the output is fed to TTS rather than shown to a human.
     output_script: OutputScript = OutputScript.FULLY_NATIVE
     #: mayura:v1 rejects longer input; the utterance assembler splits on this.
