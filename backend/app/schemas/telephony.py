@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.core.enums import LegDirection
 
@@ -45,6 +45,15 @@ class GatherWebhook(InboundCallWebhook):
     digits: str | None = Field(default=None, alias="Digits")
     speech: str | None = Field(default=None, alias="Speech")
     speech_confidence: float | None = Field(default=None, alias="SpeechConfidenceScore")
+
+    @field_validator("input_type", "digits", "speech", "speech_confidence", mode="before")
+    @classmethod
+    def blank_as_none(cls, value: object) -> object:
+        # Vobiz still posts unused Gather fields. A DTMF keypress arrives with
+        # Speech= and SpeechConfidenceScore= as empty strings, and "" is not a float.
+        if isinstance(value, str) and value.strip() == "":
+            return None
+        return value
 
 
 class LegIdentity(BaseModel):

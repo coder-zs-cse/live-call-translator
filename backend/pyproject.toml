@@ -49,6 +49,9 @@ ignore = ["S101"]  # assert is fine in tests
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S105", "S106"]
 "scripts/*" = ["S101", "T201"]
+# Alembic writes these; reformatting generated migrations on every autogenerate
+# creates diff noise without making them any easier to read.
+"alembic/versions/*" = ["E501", "UP007", "UP035", "I001"]
 
 [tool.mypy]
 python_version = "3.12"

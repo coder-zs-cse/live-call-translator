@@ -112,6 +112,32 @@ Expect roughly 3 seconds end to end. That is measured, not a bug — see
 [docs/PLAN.md](docs/PLAN.md) §7.4.2 for where it goes and what would claw it
 back.
 
+## Phase 3: the IVR
+
+Migrate the database first, then call the number:
+
+```bash
+cd backend
+uv run alembic upgrade head
+```
+
+You should hear the language question on your first call, and the menu on every
+call after — in your chosen language and English. Press 1 for a room code, then
+have a second phone call in and press 3 to join with that code.
+
+Prompts for all 11 languages are committed under `app/ivr/prompts/`. They are
+machine-generated and **worth reading before trusting**:
+
+```bash
+uv run python scripts/generate_prompts.py --languages hi-IN --overwrite
+```
+
+The script never overwrites without `--overwrite`, so hand-edits survive.
+
+**What pairing does today:** both legs reach `<Stream>` and each runs the Phase 2
+loopback, so both callers hear *themselves* translated. Cross-wiring the two
+legs so they hear *each other* is Phase 4 — that is the whole remaining job.
+
 ## Translation eval
 
 Compares configurations on a fixed dataset. Latency is identical across Sarvam

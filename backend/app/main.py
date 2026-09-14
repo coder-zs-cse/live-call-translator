@@ -13,13 +13,16 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from redis.asyncio import Redis
 from starlette.requests import Request
 
 from app.api.v1.router import api_router
 from app.core.config import get_settings
-from app.core.exceptions import AppError, RoomNotFoundError
+from app.core.exceptions import AppError, RoomCodeExhaustedError, RoomNotFoundError
 from app.core.logging import configure_logging, get_logger
 from app.providers.registry import build_providers
+from app.repositories.postgres.session import create_engine, create_session_factory
+from app.telephony.vobiz.client import VobizClient
 
 logger = get_logger(__name__)
 
@@ -27,6 +30,9 @@ logger = get_logger(__name__)
 #: know about status codes, so the mapping lives here rather than in services.
 _STATUS_BY_ERROR: dict[type[AppError], int] = {
     RoomNotFoundError: 404,
+    # Every room code is taken. That is us being out of capacity, not the
+    # caller doing anything wrong.
+    RoomCodeExhaustedError: 503,
 }
 _DEFAULT_ERROR_STATUS = 400
 
@@ -37,11 +43,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging(settings.log_level, settings.app_env)
     logger.info("starting", environment=settings.app_env.value)
 
+    engine = create_engine(settings.database)
+    app.state.engine = engine
+    app.state.session_factory = create_session_factory(engine)
+    app.state.redis = Redis.from_url(settings.redis.url, decode_responses=True)
     app.state.providers = build_providers(settings)
+    app.state.telephony = VobizClient(settings.vobiz)
+
     try:
         yield
     finally:
+        # Reverse order of construction; each close is independent so one
+        # failure does not leak the others.
+        await app.state.telephony.aclose()
         await app.state.providers.aclose()
+        await app.state.redis.aclose()
+        await engine.dispose()
         logger.info("stopped")
 
 

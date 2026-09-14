@@ -51,6 +51,11 @@ class SarvamSettings(BaseModel):
     #: mayura:v1 rejects longer input; the utterance assembler splits on this.
     max_input_chars: int = 1000
     request_timeout_seconds: float = 10.0
+    #: Retries cost latency inside a live call, so the default is small.
+    #: The prompt generator raises it, because there nobody is waiting.
+    max_retries: int = 2
+    retry_backoff_seconds: float = 0.5
+    max_backoff_seconds: float = 8.0
 
 
 class VobizSettings(BaseModel):
@@ -99,6 +104,10 @@ class CallSettings(BaseModel):
     room_code_min: int = 1000
     room_code_max: int = 9999
     room_code_allocation_attempts: int = 10
+    #: How long a caller may hold an unclaimed room before we end the call.
+    #: Shorter than the room TTL so the caller hears why, rather than
+    #: sitting on a line whose room has silently expired.
+    wait_peer_timeout_seconds: int = 180
 
 
 class PipelineSettings(BaseModel):
