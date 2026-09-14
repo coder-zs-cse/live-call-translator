@@ -64,7 +64,31 @@ cd backend && uv run python scripts/spike_translation.py
 
 It prints a latency table, a pivot verdict, and sample translations to read
 yourself — the register and code-mixing questions need human judgement, not an
-assertion.
+assertion. Results are recorded in [docs/PLAN.md](docs/PLAN.md) §7.4.1.
+
+## Phase 1: the echo test
+
+The media path is built and proven against a simulated Vobiz:
+
+```bash
+cd backend && uv run pytest tests/integration -q
+```
+
+To confirm it on a **real call**, Vobiz needs a public URL for this machine:
+
+```bash
+cloudflared tunnel --url http://localhost:8000        # or: ngrok http 8000
+```
+
+Put the tunnel origin in `backend/.env.local` as `VOBIZ__PUBLIC_BASE_URL`,
+restart the backend, then point your Vobiz application's Answer URL at
+`<tunnel>/api/v1/xml/answer` and dial the number.
+
+You should hear your own voice come back. Two things to listen for, because
+they are what this phase exists to rule out: **jitter** (choppy or robotic
+audio) and **doubling** (hearing yourself twice). The first `start` frame is
+logged in full — that is what pins down the field spellings Vobiz does not
+document.
 
 ## Checks
 

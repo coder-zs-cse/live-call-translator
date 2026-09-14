@@ -17,7 +17,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.core.enums import AppEnv, Language, OutputScript
+from app.core.enums import AppEnv, Language, OutputScript, PipelineMode
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
@@ -88,6 +88,22 @@ class CallSettings(BaseModel):
     room_code_allocation_attempts: int = 10
 
 
+class PipelineSettings(BaseModel):
+    """Phase 2 test-call behaviour.
+
+    Disappears in Phase 4, when the room a caller joins decides the languages
+    instead of a config file.
+    """
+
+    mode: PipelineMode = PipelineMode.TRANSLATE_LOOPBACK
+    #: For TRANSLATE_LOOPBACK: speak this, hear it back as the target.
+    loopback_source_language: Language = Language.HINDI
+    loopback_target_language: Language = Language.TAMIL
+    #: Silence before an utterance is considered finished. The single biggest
+    #: latency lever in the whole system - see docs/PLAN.md section 7.1.
+    vad_stop_seconds: float = 0.7
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,
@@ -105,6 +121,7 @@ class Settings(BaseSettings):
     redis: RedisSettings
     admin: AdminSettings
     call: CallSettings = Field(default_factory=CallSettings)
+    pipeline: PipelineSettings = Field(default_factory=PipelineSettings)
 
     @property
     def is_production(self) -> bool:

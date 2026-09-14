@@ -77,10 +77,10 @@ if any of these are false.
 | Vobiz playback-completion signal | OK | `checkpoint` → `playedStream`, plus `clearAudio`/`clearedAudio` |
 | Vobiz IVR DTMF | OK | `<Gather>`, DTMF **and** speech, simultaneous; digits POSTed to action URL |
 | Vobiz inbound DID + outbound call API | OK | Answer URL app model; `POST /api/v1/Account/{auth_id}/Call/` |
-| Pipecat ↔ Vobiz | OK | First-party Vobiz serializer + reference repo (`vobiz-ai/Vobiz-Pipecat`) |
+| Pipecat ↔ Vobiz | **CORRECTED** | There is **no** Vobiz serializer in Pipecat 1.10.0 — shipped ones are exotel, genesys, plivo, telnyx, twilio, vonage. An earlier draft of this table claimed otherwise; that was wrong. Vobiz's wire protocol is byte-for-byte Plivo's, so we subclass `PlivoFrameSerializer` (§6.1) |
 | Pipecat ↔ Sarvam STT streaming | OK | `SarvamSTTService` (saaras:v4) and `SarvamRealtimeSTTService` (saaras:v3-realtime, interim results, VAD tuning) |
 | Sarvam code-mixed translation | OK | `mayura:v1`, `mode="code-mixed"` — this *is* the primary/secondary feature |
-| Sarvam Indic→Indic | **RISK** | Mayura is documented as bidirectional **with English**. Direct Indic↔Indic likely pivots through English. See §7.4 |
+| Sarvam Indic→Indic | **MEASURED — pivots** | Confirmed by the Phase 0 spike: hi→ta costs the sum of its two hops. Translation alone is ~1.8s, which breaks the original latency budget. See §7.4 |
 
 `playedStream` is more valuable than it looks — it is the only honest source of
 "when did the listener actually hear this", and it powers both the feedback-loop
@@ -254,6 +254,37 @@ role. The complexity budget belongs in the audio path, not the object graph.
 
 ## 6. The translation pipeline
 
+### 6.1 Transport and serializer (built, Phase 1)
+
+Pipecat 1.10 has no Vobiz serializer. But Vobiz's streaming protocol is Plivo's,
+event for event — `media`/`dtmf` inbound, `playAudio`/`clearAudio` outbound, the
+same `streamId` envelope and the same base64 mulaw payload. So
+`VobizFrameSerializer` subclasses `PlivoFrameSerializer` and overrides exactly
+one thing: the hangup REST call, which Pipecat hardcodes to `api.plivo.com`.
+
+Two things this bought us for free:
+
+- **DTMF arrives over the media stream** (`{"event":"dtmf","dtmf":{"digit":...}}`
+  → `InputDTMFFrame`). The deferred question about in-call keypresses is
+  answered: they work.
+- The `start` event's field spelling is undocumented, so `parse_stream_start`
+  accepts the plausible variants and the handler logs the raw frame. The first
+  real call collapses it to one spelling.
+
+Two non-obvious facts, both learned the hard way and both pinned by tests:
+
+1. **`transport.input() → transport.output()` echoes silence.** Input emits
+   `InputAudioRawFrame`; output only writes `OutputAudioRawFrame`. The frames
+   traverse the pipeline and are dropped at the end. `AudioLoopback` converts
+   between them, and that one processor *is* the echo bot.
+2. **The pipeline takes several seconds to start**, and audio pushed before
+   `StartFrame` reaches the end of it is discarded.
+
+Everything runs at 8 kHz end to end — Vobiz streams 8 kHz mulaw and Sarvam TTS
+emits it directly — so there is no resampling anywhere to blame for jitter.
+
+### 6.2 The bridge
+
 Two Pipecat pipelines per call, one per direction, sharing a `CallSession`.
 
 ```python
@@ -359,11 +390,73 @@ normalize and tidy.
   feature to build.
 - `enable_preprocessing=False` by default; it normalizes, and normalizing is
   exactly what you don't want.
-- **Verify Indic↔Indic early.** Mayura documents bidirectional support *with
-  English*. If hi→ta pivots through English, quality drops and latency roughly
-  doubles. Test hi→ta, ta→hi, te→hi in Phase 0 before anything else is built.
-  Fallback: `sarvam-translate` (all 22 languages, more formal register) or an
-  LLM with a strict "translate only, preserve register and errors" prompt.
+### 7.4.1 Phase 0 spike results (measured)
+
+`scripts/spike_translation.py`, 15 calls per pair, `mode=code-mixed`.
+
+Run twice. The first run used romanised Hindi for every pair, so `ta→hi` and
+`te→hi` were fed Hindi text and told it was Tamil/Telugu — they returned
+byte-identical output, which is the tell. The corpus is now native-script per
+source language. Numbers below are from the corrected run.
+
+| pair | p50 | worst |
+|---|---|---|
+| hi→en | 709 ms | 829 ms |
+| en→ta | 1183 ms | 1356 ms |
+| hi→ta | 1889 ms | 2149 ms |
+| ta→hi | 1770 ms | 1863 ms |
+| te→hi | 1766 ms | 1931 ms |
+
+**Finding 1 — the pivot is confirmed, arithmetically.** hi→en (709) + en→ta
+(1183) = 1892 ms, against a measured hi→ta of 1889 ms. Within 0.2%, and the
+first run reproduced the same identity on a different corpus. Indic→Indic is two
+sequential hops through English and we pay for both.
+
+**Finding 2 — code-mixing works well.** English technical nouns survive into
+native script exactly as the requirement wants: ஸ்டேஷன், பேட்டரி, சார்ஜர்,
+ஏடிஎம், நியரெஸ்ட் / नियरेस्ट, कैश, विद्ड्रॉ. This part of the design needs no
+further work.
+
+**Finding 3 — quality is good, with one repeatable failure mode.** On
+native-script input, translations are faithful and colloquial, and the address
+term usually survives: Tamil `அண்ணே` → Hindi `ब्रदर`. Three defects, all worth
+tracking in the Phase 2 eval rather than blocking on:
+
+- **Disjunctive questions get mangled.** "is this hotel good, or should I look
+  at another?" came back in Tamil as *"are you asking whether to check out
+  another one?"* — a question about the question. The same construction
+  degraded into awkward Hindi on ta→hi. This is the one real intent distortion,
+  and it reproduced across pairs.
+- **Honorific polarity flips.** Hindi `भाई` (elder-brother address) became Tamil
+  `தம்பி`, which means *younger* brother. Seniority inverted — socially wrong in
+  exactly the setting this product is for.
+- **Mild intensity drift.** Telugu "battery has gone low" became Hindi "battery
+  is dead".
+
+The first, invalid run showed far worse embellishment (a bare "can I get a
+charger?" became "could you please provide a charger for this?"). That now looks
+like an artefact of feeding the model mislabelled text, not Mayura's normal
+behaviour — a useful reminder that a bad corpus makes a model look worse than it
+is.
+
+### 7.4.2 What this does to the latency budget
+
+Translation alone is ~1.8s against a 2s end-to-end p95 target. The target does
+not survive contact with this, and the brief says to get the pipeline working
+first — so v1 ships at ~3s and §9 records the real numbers. Levers, cheapest
+first, all Phase 8:
+
+1. **Collapse the first hop into STT.** Sarvam's `speech-to-text-translate`
+   (Saaras) emits English text directly from source-language audio. Since we
+   already pay for an STT call, the hi→en hop becomes free and only en→target
+   remains — roughly 650 ms off, for no extra request. This is the single
+   biggest win available and should be the first thing tried.
+2. **Clause-level streaming** (§7.1) — overlaps translation with speech rather
+   than making it shorter.
+3. An LLM translator, streamed, if it beats Mayura on the eval *and* on latency.
+
+Do not do any of these before Phase 4. A slow call that works beats a fast one
+that does not exist.
 - **Build a translation eval harness in Phase 2, not at the end.** ~100 recorded
   utterances across 5 language pairs with reference translations; score with
   chrF++/COMET plus a human 1–5 on register preservation. Without this, "quality
@@ -450,12 +543,17 @@ Build this in Phase 5 — it is what makes every later quality problem debuggabl
 
 | Stage | Budget | Notes |
 |---|---|---|
-| Endpoint detection | 500–700 ms | dominant; the `stop_secs` knob |
+| Endpoint detection | 500–700 ms | dominant tunable; the `stop_secs` knob |
 | STT finalization | 150–350 ms | mostly overlapped via streaming |
-| Translation | 200–500 ms | doubles if pivoting through English |
+| Translation | **~1800 ms** | **measured**, not budgeted — Indic→Indic pivots (§7.4.1) |
 | TTS first byte | 150–400 ms | stream, don't wait for full audio |
 | Network + jitter | 100–200 ms | |
-| **Total** | **1.1–2.15 s** | achievable; §7.1 clause streaming is the next lever |
+| **Total** | **~2.7–3.45 s** | over target, accepted for v1 |
+
+The 2s p95 target does not survive the measured translation cost. v1 ships at
+~3s deliberately: the brief prioritises a working pipeline over a fast one, and
+the §7.4.2 levers (Saaras collapsing the first hop, then clause streaming) are
+Phase 8 work that only makes sense once there is a call to measure.
 
 **Cost model** (fill from live vendor pricing in Phase 0; target ≤ ₹10/min):
 
@@ -556,8 +654,8 @@ only".
 
 | Phase | Deliverable | Done when |
 |---|---|---|
-| **0. Spikes & skeleton** | Repo skeleton, docker-compose (PG/Redis/MinIO), config, CI. **Spike: Sarvam hi↔ta quality + latency. Spike: Vobiz number + hello-world XML.** Fill the cost model. | A script translates hi→ta with measured latency and a quality verdict; a real phone call hits your `/answer` endpoint |
-| **1. Media path** | One leg, `<Stream bidirectional>`, Pipecat + Vobiz serializer, echo bot | You call the number and hear your own voice back, clean, no jitter |
+| **0. Spikes & skeleton** ✅ | Repo skeleton, docker-compose, config, provider layer. Translation spike run twice (§7.4.1) | **Done.** Latency and quality measured; pivot confirmed. Cost model still unfilled |
+| **1. Media path** ~ | `<Stream bidirectional>` XML, media websocket, `VobizFrameSerializer`, echo bot | **Code done, tests green** — the echo path is proven against a simulated Vobiz (`tests/integration`). **Not yet confirmed on a real call** |
 | **2. Single-leg translation** | STT→MT→TTS on one leg, translated back to you. Provider interfaces + Sarvam impls. **Eval harness.** | You speak Hindi, hear Tamil. Eval harness scores a baseline on 5 pairs |
 | **3. IVR** | Voice XML state machine, `<Gather>`, language selection, room create/join/dial-out, Redis room registry | Two phones pair by room code and by dial-out; languages persist across calls |
 | **4. The bridge** | Two-leg cross-transport pipelines, strict `seq` ordering queue | **Two phones in different rooms hold a real translated conversation.** Translated voice only, no double audio |

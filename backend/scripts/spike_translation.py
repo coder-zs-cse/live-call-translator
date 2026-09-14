@@ -35,18 +35,45 @@ from app.core.exceptions import AppError  # noqa: E402
 from app.providers.registry import build_providers  # noqa: E402
 from app.schemas.translation import TranslationRequest  # noqa: E402
 
-#: Deliberately includes broken grammar and English technical nouns, because
-#: those are the two things the requirements say must survive translation.
-SAMPLES: list[str] = [
-    "Bhai mujhe station jaana hai, kitna time lagega?",
-    "My phone ka battery low ho gaya hai, charger milega kya?",
-    "Where is the nearest ATM machine, I need to withdraw cash urgently",
-    "Yeh wala hotel accha hai kya, ya main dusra dekhu?",
-    "I am not from here, please can you help me finding this address",
-]
+#: One corpus per source language, in that language's own script.
+#:
+#: The first run of this spike used romanised Hindi for every pair, so ta->hi and
+#: te->hi were handed Hindi text and told it was Tamil/Telugu. They returned
+#: byte-identical output, which is the tell. Latency was still measurable, but
+#: the quality verdict on those pairs was worthless. Source text must actually
+#: be in the source language.
+#:
+#: Each corpus deliberately mixes English technical nouns with casual, slightly
+#: broken grammar - the two things the requirements say must survive.
+CORPUS: dict[Language, list[str]] = {
+    Language.HINDI: [
+        "भाई मुझे स्टेशन जाना है, कितना टाइम लगेगा?",
+        "मेरे फ़ोन की बैटरी लो हो गई है, चार्जर मिलेगा क्या?",
+        "यह वाला होटल अच्छा है क्या, या मैं दूसरा देखूँ?",
+        "मुझे अर्जेंट कैश निकालना है, नियरेस्ट ATM कहाँ है?",
+    ],
+    Language.TAMIL: [
+        "அண்ணே எனக்கு ஸ்டேஷன் போகணும், எவ்வளவு டைம் ஆகும்?",
+        "என் ஃபோன் பேட்டரி லோ ஆயிடுச்சு, சார்ஜர் கிடைக்குமா?",
+        "இந்த ஹோட்டல் நல்லா இருக்கா, இல்ல வேற பாக்கவா?",
+        "எனக்கு அர்ஜென்ட்டா கேஷ் வேணும், பக்கத்துல ATM எங்க இருக்கு?",
+    ],
+    Language.TELUGU: [
+        "అన్నా నాకు స్టేషన్ కి వెళ్ళాలి, ఎంత టైమ్ పడుతుంది?",
+        "నా ఫోన్ బ్యాటరీ లో అయిపోయింది, ఛార్జర్ దొరుకుతుందా?",
+        "ఈ హోటల్ బాగుందా, లేక వేరే చూడాలా?",
+        "నాకు అర్జెంట్ గా క్యాష్ కావాలి, దగ్గరలో ATM ఎక్కడ ఉంది?",
+    ],
+    Language.ENGLISH: [
+        "Bro how much time it will take to reach the station?",
+        "My phone battery is low, can I get a charger?",
+        "Is this hotel good or should I check another one?",
+        "Where is the nearest ATM machine, I need to withdraw cash urgently",
+    ],
+}
 
-#: en<->Indic pairs establish the baseline cost; the Indic<->Indic pairs are the
-#: ones under suspicion.
+#: en<->Indic pairs establish the per-hop baseline; the Indic<->Indic pairs are
+#: the ones suspected of paying for two hops.
 PAIRS: list[tuple[Language, Language]] = [
     (Language.HINDI, Language.ENGLISH),
     (Language.ENGLISH, Language.TAMIL),
@@ -81,7 +108,7 @@ async def run_pair(
 ) -> PairOutcome:
     outcome = PairOutcome(source=source.value, target=target.value)
 
-    for text in SAMPLES:
+    for text in CORPUS[source]:
         for attempt in range(repeat):
             request = TranslationRequest(
                 text=text,
@@ -134,6 +161,8 @@ async def main() -> int:
     ]
     if baseline and indic and baseline.latencies_ms:
         print("\n=== Pivot check ===")
+        print("(approximate: each source language now has its own corpus, so")
+        print(" input lengths differ slightly between pairs)")
         print(f"en-baseline p50: {baseline.p50:.0f} ms")
         for o in indic:
             if not o.latencies_ms:

@@ -21,7 +21,7 @@ dependencies = [
 # Pinned in Phase 1, once the exact Pipecat extras for Vobiz + Sarvam + Silero
 # are confirmed against the reference repo. Phase 0 does not need them.
 media = [
-    "pipecat-ai",
+    "pipecat-ai[sarvam,silero,webrtc]",
 ]
 dev = [
     "pytest>=8.3",

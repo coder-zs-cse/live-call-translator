@@ -1,0 +1,62 @@
+
+=== Latency by pair ===
+pair                n    p50 ms   worst ms  errors
+hi-IN->en-IN       12       686       1026  0
+en-IN->ta-IN       12      1196       1462  0
+hi-IN->ta-IN       12      1888       2459  0
+ta-IN->hi-IN       12      1766       2778  0
+te-IN->hi-IN       12      1769       1973  0
+
+=== Pivot check ===
+(approximate: each source language now has its own corpus, so
+ input lengths differ slightly between pairs)
+en-baseline p50: 686 ms
+  hi-IN->ta-IN: 2.75x baseline  ->  likely pivots via English
+  ta-IN->hi-IN: 2.57x baseline  ->  likely pivots via English
+  te-IN->hi-IN: 2.58x baseline  ->  likely pivots via English
+
+=== Read these yourself ===
+Did English technical nouns survive? Did broken grammar survive?
+
+--- hi-IN -> en-IN ---
+  in : भाई मुझे स्टेशन जाना है, कितना टाइम लगेगा?
+  out: Brother, I have to go to the station, how much time will it take?
+  in : मेरे फ़ोन की बैटरी लो हो गई है, चार्जर मिलेगा क्या?
+  out: My phone's battery is low, will I get a charger?
+  in : यह वाला होटल अच्छा है क्या, या मैं दूसरा देखूँ?
+  out: Is this hotel good, or should I check out another one?
+
+--- en-IN -> ta-IN ---
+  in : Bro how much time it will take to reach the station?
+  out: ப்ரோ, ஸ்டேஷன் போறதுக்கு எவ்ளோ டைம் ஆகும்?
+  in : My phone battery is low, can I get a charger?
+  out: என் ஃபோன் பேட்டரி லோ-ஆ இருக்கு, சார்ஜர் வாங்கலாமா?
+  in : Is this hotel good or should I check another one?
+  out: இந்த ஹோட்டல் நல்லா இருக்கா இல்ல வேற ஏதாவது செக் பண்ணட்டுமா?
+
+--- hi-IN -> ta-IN ---
+  in : भाई मुझे स्टेशन जाना है, कितना टाइम लगेगा?
+  out: தம்பி, நான் ஸ்டேஷன்-க்கு போகணும், எவ்ளோ நேரம் ஆகும்?
+  in : मेरे फ़ोन की बैटरी लो हो गई है, चार्जर मिलेगा क्या?
+  out: என் ஃபோன்-ல பேட்டரி லோ-ஆ இருக்கு, எனக்கு சார்ஜர் கிடைக்குமா?
+  in : यह वाला होटल अच्छा है क्या, या मैं दूसरा देखूँ?
+  out: இந்த ஹோட்டல் நல்லா இருக்கா இல்ல வேற ஏதாவது செக் அவுட் பண்ணிக்கலாமான்னு கேக்கறீங்களா?
+
+--- ta-IN -> hi-IN ---
+  in : அண்ணே எனக்கு ஸ்டேஷன் போகணும், எவ்வளவு டைம் ஆகும்?
+  out: ब्रदर, मुझे स्टेशन जाना है, इसमें कितना टाइम लगेगा?
+  in : என் ஃபோன் பேட்டரி லோ ஆயிடுச்சு, சார்ஜர் கிடைக்குமா?
+  out: मेरी फ़ोन बैटरी लो है, क्या मुझे चार्जर मिलेगा?
+  in : இந்த ஹோட்டல் நல்லா இருக்கா, இல்ல வேற பாக்கவா?
+  out: क्या यह होटल अच्छा है, या मुझे कोई और देखना चाहिए?
+
+--- te-IN -> hi-IN ---
+  in : అన్నా నాకు స్టేషన్ కి వెళ్ళాలి, ఎంత టైమ్ పడుతుంది?
+  out: ब्रदर, मुझे स्टेशन जाना है, इसमें कितना टाइम लगेगा?
+  in : నా ఫోన్ బ్యాటరీ లో అయిపోయింది, ఛార్జర్ దొరుకుతుందా?
+  out: मेरी फ़ोन बैटरी डेड है, क्या चार्जर अवेलेबल है?
+  in : ఈ హోటల్ బాగుందా, లేక వేరే చూడాలా?
+  out: क्या यह होटल अच्छा है, या मुझे कोई और देखना चाहिए?
+
+
+C:\Users\WWWZU\Documents\coding\projects\live call translator\repo\live-call-translator\backend>

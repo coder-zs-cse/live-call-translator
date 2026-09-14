@@ -135,6 +135,54 @@ class MenuKey(StrEnum):
     CHANGE_LANGUAGE = "9"
 
 
+class PipelineMode(StrEnum):
+    """Which pipeline a leg gets. Phase 4 replaces this with real pairing.
+
+    Until then it is how you choose what a test call does.
+    """
+
+    #: Phase 1: hear your own voice back. Proves transport only.
+    ECHO = "echo"
+    #: Phase 2: hear yourself translated. Proves the full AI path on one leg.
+    TRANSLATE_LOOPBACK = "translate_loopback"
+
+
+class SarvamSpeaker(StrEnum):
+    """Voices available on bulbul:v3.
+
+    Speaker names are model-generation specific: the v2 voices (anushka,
+    abhilash, manisha, vidya, arya, karun, hitesh) are NOT valid for v3, and
+    pairing one with v3 fails at request time. Naming them here rather than
+    inlining strings is what stops that recurring.
+    """
+
+    ADITYA = "aditya"
+    RITU = "ritu"
+    PRIYA = "priya"
+    NEHA = "neha"
+    RAHUL = "rahul"
+    POOJA = "pooja"
+    ROHAN = "rohan"
+    SIMRAN = "simran"
+    KAVYA = "kavya"
+    AMIT = "amit"
+    DEV = "dev"
+    ISHITA = "ishita"
+    SHREYA = "shreya"
+    RATAN = "ratan"
+    VARUN = "varun"
+    MANAN = "manan"
+    SUMIT = "sumit"
+    ROOPA = "roopa"
+    KABIR = "kabir"
+    AAYAN = "aayan"
+    SHUBH = "shubh"
+    ASHUTOSH = "ashutosh"
+    ADVAIT = "advait"
+    AMELIA = "amelia"
+    SOPHIA = "sophia"
+
+
 class AudioCodec(StrEnum):
     """Wire formats shared by Vobiz streaming and Sarvam TTS.
 

@@ -31,7 +31,7 @@ services:
 
   # Audio archive for per-utterance clips (Phase 5). S3-compatible.
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:latest
     container_name: lct-minio
     command: server /data --console-address ":9001"
     environment:

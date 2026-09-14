@@ -15,7 +15,7 @@ import binascii
 import time
 
 from app.core.config import SarvamSettings
-from app.core.enums import AudioCodec, Language
+from app.core.enums import AudioCodec, Language, SarvamSpeaker
 from app.core.exceptions import TextToSpeechFailedError
 from app.providers.sarvam.client import PROVIDER_NAME, SarvamHttpClient
 from app.schemas.translation import SynthesisRequest, SynthesisResult
@@ -37,11 +37,13 @@ _CODEC_SAMPLE_RATE: dict[AudioCodec, int] = {
     AudioCodec.LINEAR16_16000: 16000,
 }
 
-#: Curated per language. Default voice quality varies a lot across Indic
-#: languages, so this map is worth revisiting with real listening tests rather
-#: than trusting one voice everywhere.
-_DEFAULT_SPEAKERS: dict[Language, str] = dict.fromkeys(Language, "anushka")
-_FALLBACK_SPEAKER = "anushka"
+#: Curated per language. Voice quality varies a lot across Indic languages, so
+#: this map is worth revisiting with real listening tests rather than trusting
+#: one voice everywhere - which is exactly why it is a map and not a constant.
+_DEFAULT_SPEAKERS: dict[Language, SarvamSpeaker] = dict.fromkeys(
+    Language, SarvamSpeaker.PRIYA
+)
+_FALLBACK_SPEAKER = SarvamSpeaker.PRIYA
 
 
 class SarvamTextToSpeech:
@@ -57,8 +59,8 @@ class SarvamTextToSpeech:
 
     def default_speaker(self, language: object) -> str:
         if isinstance(language, Language):
-            return _DEFAULT_SPEAKERS.get(language, _FALLBACK_SPEAKER)
-        return _FALLBACK_SPEAKER
+            return _DEFAULT_SPEAKERS.get(language, _FALLBACK_SPEAKER).value
+        return _FALLBACK_SPEAKER.value
 
     async def synthesize(self, request: SynthesisRequest) -> SynthesisResult:
         payload = {

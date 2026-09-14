@@ -6,7 +6,7 @@ FastAPI control plane + (from Phase 1) the Pipecat media plane.
 
 ```bash
 cp .env.local.example .env.local     # then fill in SARVAM__API_KEY etc.
-uv sync --extra dev
+uv sync --extra dev --extra media
 docker compose -f ../infra/docker-compose.yml up -d
 uv run uvicorn app.main:app --reload --port 8000
 ```
