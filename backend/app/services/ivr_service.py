@@ -268,6 +268,18 @@ class IvrService:
         if leg.state is LegState.BRIDGED:
             return IvrDirective(speak=self._bilingual(PromptKey.CONNECTED, leg), bridge=True)
 
+        if not await self._pairing.is_wait_active(leg.id):
+            # Say why before hanging up. A call that just goes dead reads as a
+            # bug to the caller, and they redial into the same dead end.
+            await self._legs.set_state(leg.id, LegState.ENDED)
+            logger.info("wait_timed_out", leg_id=str(leg.id))
+            return IvrDirective.say_and_hangup(
+                [
+                    *self._bilingual(PromptKey.NOBODY_JOINED, leg),
+                    *self._bilingual(PromptKey.GOODBYE, leg),
+                ]
+            )
+
         return IvrDirective(gather=self._wait_gather())
 
     async def on_phone_number(self, webhook: GatherWebhook) -> tuple[IvrDirective, str | None]:

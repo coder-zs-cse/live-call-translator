@@ -20,6 +20,7 @@ from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.exceptions import AppError, RoomCodeExhaustedError, RoomNotFoundError
 from app.core.logging import configure_logging, get_logger
+from app.pipeline.bridge import BridgeRegistry
 from app.providers.registry import build_providers
 from app.repositories.postgres.session import create_engine, create_session_factory
 from app.telephony.vobiz.client import VobizClient
@@ -49,6 +50,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.redis = Redis.from_url(settings.redis.url, decode_responses=True)
     app.state.providers = build_providers(settings)
     app.state.telephony = VobizClient(settings.vobiz)
+    # In-process rendezvous for the two media streams of one call. Lives on
+    # app state rather than module scope so tests get a fresh one per app.
+    app.state.bridges = BridgeRegistry()
 
     try:
         yield

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import re
 import secrets
+import time
 import xml.etree.ElementTree as ET
 
 import pytest
@@ -176,3 +177,42 @@ def test_a_returning_caller_hears_the_menu_in_both_languages(client: TestClient)
     assert "Press 1 to create a room." in lines[1]
     # The Hindi line must not be the English one repeated.
     assert lines[0] != lines[1]
+
+
+def test_an_unclaimed_room_ends_the_call_with_an_explanation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A caller nobody joins must be told why, not left on a silent line.
+
+    The timeout is shortened to one second here; the real value is three
+    minutes.
+    """
+    from app.core.config import get_settings
+
+    monkeypatch.setenv("CALL__WAIT_PEER_TIMEOUT_SECONDS", "1")
+    get_settings.cache_clear()
+
+    try:
+        with TestClient(create_app()) as client:
+            creator = phone()
+            uuid_timeout = call_uuid("timeout")
+            complete_language_setup(client, uuid_timeout, creator)
+            created = client.post(
+                "/api/v1/xml/menu", data=form(uuid_timeout, creator, Digits=MENU_CREATE_ROOM)
+            )
+            assert extract_room_code(created.text)
+
+            # Still holding, so the poll keeps waiting.
+            assert (
+                "<Hangup"
+                not in client.post("/api/v1/xml/wait", data=form(uuid_timeout, creator)).text
+            )
+
+            time.sleep(1.5)
+
+            expired = client.post("/api/v1/xml/wait", data=form(uuid_timeout, creator))
+            assert "<Hangup" in expired.text
+            assert any("Nobody joined" in line for line in speak_lines(expired.text))
+    finally:
+        monkeypatch.undo()
+        get_settings.cache_clear()

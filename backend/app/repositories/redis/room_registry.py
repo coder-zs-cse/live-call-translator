@@ -82,9 +82,7 @@ class RedisRoomRegistry:
         is no arithmetic to get wrong, and it expires on its own even if the
         caller hangs up and the poll never comes back.
         """
-        await self._redis.set(
-            _wait_key(leg_id), "1", ex=self._call.wait_peer_timeout_seconds
-        )
+        await self._redis.set(_wait_key(leg_id), "1", ex=self._call.wait_peer_timeout_seconds)
 
     async def is_wait_active(self, leg_id: uuid.UUID) -> bool:
         return bool(await self._redis.exists(_wait_key(leg_id)))

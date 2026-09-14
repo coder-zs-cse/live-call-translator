@@ -84,10 +84,7 @@ async def generate_language(
 
     semaphore = asyncio.Semaphore(MAX_CONCURRENCY)
     results = await asyncio.gather(
-        *(
-            translate_prompt(translator, key, text, target, semaphore)
-            for key, text in todo.items()
-        )
+        *(translate_prompt(translator, key, text, target, semaphore) for key, text in todo.items())
     )
     merged = dict(existing)
     merged.update({key.value: text for key, text in results if text is not None})

@@ -313,9 +313,31 @@ Two non-obvious facts, both learned the hard way and both pinned by tests:
 Everything runs at 8 kHz end to end — Vobiz streams 8 kHz mulaw and Sarvam TTS
 emits it directly — so there is no resampling anywhere to blame for jitter.
 
-### 6.2 The bridge
+### 6.2 The bridge (built, Phase 4)
 
-Two Pipecat pipelines per call, one per direction, sharing a `CallSession`.
+Two Pipecat pipelines per call, one per direction.
+
+**The rendezvous is the hard part, not the pipelines.** The two legs are two
+independent websocket handlers in two coroutines, connecting up to a wait-poll
+apart. `BridgeRegistry` holds a per-call session behind a lock; whoever arrives
+second builds and runs both pipelines, while the first simply holds its socket
+open until they finish. The lock is load-bearing — both legs can arrive in the
+same event-loop tick, and without it either both would run the pipelines or
+neither would.
+
+Two timeouts that must stay separate, and conflating them is a bug that only
+shows up on calls that were otherwise working:
+
+- **peer arrival** is bounded (45s) — a caller who hangs up between pairing and
+  streaming must not strand a coroutine;
+- **call duration** is not bounded. A single timeout covering both hangs up on a
+  healthy conversation.
+
+A caller holding an unclaimed room is separately capped at
+`CALL__WAIT_PEER_TIMEOUT_SECONDS` (3 min), after which the call ends *with a
+spoken explanation* — a line that just goes dead reads as a bug and the caller
+redials into the same dead end. Redis TTL does that timing, so there is no clock
+arithmetic to get wrong and it expires on its own even if the poll never returns.
 
 ```python
 # direction A → B
@@ -728,7 +750,7 @@ only".
 | **1. Media path** ✅ | `<Stream bidirectional>` XML, media websocket, `VobizFrameSerializer`, echo bot | **Done and confirmed on a real call** — own voice returned, clear, no jitter |
 | **2. Single-leg translation** ~ | STT→MT→TTS on one leg via `PipelineMode.TRANSLATE_LOOPBACK`; `TranslationProcessor`; eval harness + dataset | **Code done, tests green, mode A/B run (§7.4.1b).** **Not yet confirmed on a real call** |
 | **3. IVR** ~ | `IvrService` state machine, `<Gather>`, language selection, room create/join/dial-out, Postgres (users/calls/legs + Alembic), Redis room registry, generated prompt catalog | **Code done, 45 tests green** including two callers pairing by room code against real Postgres + Redis. **Not yet confirmed on a real call**, and dial-out has never been exercised against the live Vobiz API |
-| **4. The bridge** | Two-leg cross-transport pipelines, strict `seq` ordering queue | **Two phones in different rooms hold a real translated conversation.** Translated voice only, no double audio |
+| **4. The bridge** ~ | `BridgeRegistry` rendezvous + two cross-transport pipelines (§6.2) | **Code done, 59 tests green** — rendezvous covered including simultaneous arrival. **The audio path itself has no automated test** (it needs live STT on real speech) and is unconfirmed on a real call |
 | **5. Observability** | Event bus + subscribers, `utterances` table, OTel, audio archival | Every utterance inspectable end-to-end with a timing waterfall |
 | **6. Admin panel** | Next.js, phone login, call inspector, dashboards | You debug a real quality complaint using only the panel |
 | **7. Limits & billing** | Rate limit chain, config, usage ledger, plans | A capped number hears the right message in its own language |

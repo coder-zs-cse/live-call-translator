@@ -134,9 +134,29 @@ uv run python scripts/generate_prompts.py --languages hi-IN --overwrite
 
 The script never overwrites without `--overwrite`, so hand-edits survive.
 
-**What pairing does today:** both legs reach `<Stream>` and each runs the Phase 2
-loopback, so both callers hear *themselves* translated. Cross-wiring the two
-legs so they hear *each other* is Phase 4 — that is the whole remaining job.
+A caller who creates a room nobody joins is hung up after 3 minutes with a
+spoken explanation (`CALL__WAIT_PEER_TIMEOUT_SECONDS`).
+
+## Phase 4: the bridge
+
+**Paired legs now hear each other.** Two phones, two languages, each side
+hearing only the other's translated speech:
+
+```
+A.in -> STT(A.primary) -> MT(A -> B) -> TTS(B) -> B.out
+B.in -> STT(B.primary) -> MT(B -> A) -> TTS(A) -> A.out
+```
+
+Nothing routes raw audio between legs, so "translated voice only" is a property
+of the wiring rather than a filter — see [docs/PLAN.md](docs/PLAN.md) §2.
+
+`PIPELINE__MODE` now applies only to **unpaired** legs, so a solo test call still
+gives you the echo or loopback bot without touching config. Pair two phones and
+you get the real thing.
+
+To test properly you need two phones and two different languages. Set one
+caller's language to Hindi and the other's to Tamil (press 9 to change), then
+pair them.
 
 ## Translation eval
 
